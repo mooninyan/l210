@@ -17,8 +17,8 @@ func checkSortByColumn(list []string, config *Config) bool {
 }
 
 func sliceIsSorted(listOfList [][]string, config *Config) bool {
-	comp := CompImpl{config.asInt, config.sortByMonth, config.humanSize}
-	sorted := sort.SliceIsSorted(listOfList, lessByColumn(listOfList, config.column, comp, !config.reverse))
+	comp := CompImpl{config.asInt, config.sortByMonth, config.humanSize, config.reverse}
+	sorted := sort.SliceIsSorted(listOfList, lessByColumn(listOfList, config.column, comp))
 	return sorted
 }
 
@@ -30,9 +30,14 @@ type CompImpl struct {
 	asInt     bool
 	byMonth   bool
 	humanSize bool
+	reverse   bool
 }
 
 func (ci CompImpl) Less(o1, o2 any) bool {
+	return ci.reverse != less(o1, o2, ci)
+}
+
+func less(o1 any, o2 any, ci CompImpl) bool {
 	if ci.humanSize {
 		return compareHumanSize(o1.(string), o2.(string))
 	}
@@ -116,17 +121,12 @@ func lessMonth(a, b string) bool {
 // сравнение по колонке
 func lessByColumn(listOfList [][]string,
 	colNumber int,
-	comparator Comparator,
-	ascending bool) func(i, j int) bool {
+	comparator Comparator) func(i, j int) bool {
 	return func(i, j int) bool {
 		if (len(listOfList[i]) <= colNumber) || (len(listOfList[j]) <= colNumber) {
 			return false
 		}
-		less := comparator.Less(listOfList[i][colNumber], listOfList[j][colNumber])
-		if ascending {
-			return less
-		}
-		return !less
+		return comparator.Less(listOfList[i][colNumber], listOfList[j][colNumber])
 	}
 }
 
@@ -136,9 +136,9 @@ func sortByColumn(list []string, config *Config) {
 	for i, str := range list {
 		listOfList[i] = strings.Fields(str)
 	}
-	comp := CompImpl{config.asInt, config.sortByMonth, config.humanSize}
+	comp := CompImpl{config.asInt, config.sortByMonth, config.humanSize, config.reverse}
 
-	sort.Slice(listOfList, lessByColumn(listOfList, config.column, comp, !config.reverse))
+	sort.Slice(listOfList, lessByColumn(listOfList, config.column, comp))
 
 	for i, it := range listOfList {
 		list[i] = strings.Join(it, " ")

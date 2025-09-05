@@ -25,7 +25,12 @@ func splitAndSortLargeFile(inputFile string, chunkSize int, cfg *Config) ([]stri
 	if err != nil {
 		return nil, err
 	}
-	defer inFile.Close()
+	defer func(inFile *os.File) {
+		err = inFile.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(inFile)
 
 	scanner := bufio.NewScanner(inFile)
 	var chunk []string
@@ -71,11 +76,19 @@ func splitAndSortLargeFile(inputFile string, chunkSize int, cfg *Config) ([]stri
 		for _, line := range chunk {
 			_, err = outFile.WriteString(line + "\n")
 			if err != nil {
-				outFile.Close()
+				err = outFile.Close()
+				if err != nil {
+					fmt.Println(err)
+					return nil, err
+				}
 				return nil, err
 			}
 		}
-		outFile.Close()
+		err = outFile.Close()
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
 		tempFiles = append(tempFiles, tempFileName)
 		partIdx++
 	}
@@ -99,12 +112,17 @@ func mergeSortedFiles(files []string, cfg *Config) error {
 			readers = append(readers, scanners)
 		} else {
 			// файл пустой, закрываем
-			f.Close()
+			err = f.Close()
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
 		}
 	}
 
 	// Создаем приоритетную очередь
-	pq := &ItemHeap{}
+	impl := CompImpl{asInt: cfg.asInt, byMonth: cfg.sortByMonth, humanSize: cfg.humanSize, reverse: cfg.reverse}
+	pq := &ItemHeap{Comparator: impl}
 	heap.Init(pq)
 
 	// Инициализация очереди начальными элементами
@@ -143,30 +161,37 @@ func mergeSortedFiles(files []string, cfg *Config) error {
 
 	// закрываем файлы
 	for _, f := range fileHandles {
-		f.Close()
+		err := f.Close()
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
 	}
 
 	return nil
 }
 
-// структура для heap
+// Item структура для heap
 type Item struct {
 	value   string
 	fileIdx int
 }
 
-type ItemHeap []*Item
+type ItemHeap struct {
+	items []*Item
+	Comparator
+}
 
-func (h *ItemHeap) Len() int           { return len(*h) }
-func (h *ItemHeap) Less(i, j int) bool { return (*h)[i].value < (*h)[j].value }
-func (h *ItemHeap) Swap(i, j int)      { (*h)[i], (*h)[j] = (*h)[j], (*h)[i] }
+func (h *ItemHeap) Len() int           { return len(h.items) }
+func (h *ItemHeap) Less(i, j int) bool { return h.Comparator.Less(h.items[i].value, h.items[j].value) }
+func (h *ItemHeap) Swap(i, j int)      { h.items[i], h.items[j] = h.items[j], h.items[i] }
 func (h *ItemHeap) Push(x interface{}) {
-	*h = append(*h, x.(*Item))
+	(*h).items = append((*h).items, x.(*Item))
 }
 func (h *ItemHeap) Pop() interface{} {
 	old := *h
-	n := len(old)
-	item := old[n-1]
-	*h = old[:n-1]
+	n := len(old.items)
+	item := old.items[n-1]
+	h.items = old.items[:n-1]
 	return item
 }

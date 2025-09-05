@@ -25,6 +25,7 @@ func gnuLikeSort(files []string, scanner *bufio.Scanner, cfg *Config) {
 		}
 
 		if err != nil {
+			fmt.Println(err)
 			return
 		}
 
@@ -63,7 +64,10 @@ func gnuLikeSort(files []string, scanner *bufio.Scanner, cfg *Config) {
 	}
 
 	for _, r := range res.fileNames {
-		os.Remove(r)
+		err = os.Remove(r)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
 
@@ -85,7 +89,7 @@ func distinct(list []string, cfg *Config) []string {
 	return list
 }
 
-// читаем строки из фалов или stdin
+// Читаем строки из фалов или stdin
 func readFromSource(files []string, scanner *bufio.Scanner, cfg *Config) readResult {
 	var result readResult
 

@@ -45,7 +45,12 @@ func readFromFile(fileName string, cfg *Config) (lines []string, err error) {
 		fmt.Println("Ошибка открытия файла:", err)
 		return
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err = file.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(file)
 
 	// Создаём сканер для построчного чтения
 	scanner := bufio.NewScanner(file)
@@ -112,8 +117,16 @@ func readLinesWithLimitCheck(scanner *bufio.Scanner, cfg *Config) ([]string, *st
 		}
 	}
 
-	writer.Flush()
-	tempFile.Close()
+	err = writer.Flush()
+	if err != nil {
+		fmt.Println(err)
+		return nil, nil, err
+	}
+	err = tempFile.Close()
+	if err != nil {
+		fmt.Println(err)
+		return nil, nil, err
+	}
 
 	tempFileAddr := tempFile.Name()
 	if err = scanner.Err(); err != nil {
