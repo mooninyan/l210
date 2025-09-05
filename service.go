@@ -62,13 +62,6 @@ func gnuLikeSort(files []string, scanner *bufio.Scanner, cfg *Config) {
 
 		fmt.Println(strings.Join(list, "\n"))
 	}
-
-	for _, r := range res.fileNames {
-		err = os.Remove(r)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
 }
 
 func distinct(list []string, cfg *Config) []string {
